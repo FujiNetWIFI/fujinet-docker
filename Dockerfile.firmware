@@ -1,0 +1,46 @@
+# Use an image that has cmake and build essentials
+FROM ubuntu:20.04 AS builder
+
+# Avoid prompts from apt
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Add clone buster
+ARG GIT_CLONE_VERSION=unknown
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    cmake \
+    python3 \
+    python3-pip \
+    python-is-python3 \
+    libmbedtls-dev \
+    libexpat1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and build firmware
+RUN git clone https://github.com/FujiNetWIFI/fujinet-firmware.git /fujinet-firmware
+WORKDIR /fujinet-firmware
+RUN ./build.sh -c -p ATARI
+
+# Use a new stage to keep the final image clean
+FROM ubuntu:20.04
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the built application from the builder stage
+COPY --from=builder /fujinet-firmware/build/dist /app
+
+# Modify the fnconfig.ini file to replace localhost with emulator-bridge for the host
+RUN sed -i 's/host=localhost/host=emulator-bridge/g' /app/fnconfig.ini
+
+# Set the working directory to where the application is
+WORKDIR /app
+
+# Command to run the application
+CMD ["./run-fujinet"]

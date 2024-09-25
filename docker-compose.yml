@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  emulator-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    ports:
+      - "9996:9996/tcp"
+
+  fujinet-firmware:
+    build:
+      context: .
+      dockerfile: Dockerfile.firmware
+      args:
+        GIT_CLONE_VERSION: ${BUILD_VERSION:-$(date +%s)}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - emulator-bridge
